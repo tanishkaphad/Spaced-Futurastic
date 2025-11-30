@@ -1,9 +1,11 @@
     // ============================================
     // API CONFIGURATION
     // ============================================
-    const API_BASE = 'http://localhost:1302/api/frontend';
-    const DSL_ENDPOINT = 'http://localhost:1302/dsl/run';
-
+    // const API_BASE = 'http://localhost:1302/api/frontend';
+    // const DSL_ENDPOINT = 'http://localhost:1302/dsl/run';
+// /api/ping
+const API_BASE = 'https://supreme-eureka-h5f8.onrender.com/api/frontend';
+    const DSL_ENDPOINT = 'https://supreme-eureka-h5f8.onrender.com/dsl/run';
     // ============================================
     // CESIUM VIEWER INITIALIZATION
     // ============================================
