@@ -664,3 +664,17 @@ body { background:#000; color:#fff; overflow:hidden; }
   .console-panel { width: 420px; }
   .info-panel { width: 300px; }
 }
+
+/* additional changes */
+/* Smooth fadeout for auto-hide tooltip */
+.auto-hide-tooltip-fadeout {
+  opacity: 0 !important;
+  transition: opacity 0.25s ease;
+}
+
+/* Optional: ensure tooltips are initially visible (in case some CSS hides them) */
+.auto-hide-tooltip-visible {
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
