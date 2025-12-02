@@ -19,7 +19,7 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
     geocoder: false,
     homeButton: true,
     infoBox: true,
-    imageryProvider: new Cesium.IonImageryProvider({ assetId: 3812 }), // dark imagery like your original
+    imageryProvider: new Cesium.IonImageryProvider({ assetId: 3 }), // dark imagery like your original
     sceneModePicker: false,
     selectionIndicator: true,
     timeline: true,
@@ -39,7 +39,7 @@ viewer.clock.shouldAnimate = true;
 viewer.clock.multiplier = 1;
 
 viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(0, 0, 25000000),
+    destination: Cesium.Cartesian3.fromDegrees(78, 20, 20000000),
     orientation: { heading: 0, pitch: -1.57, roll: 0 }
 });
 
@@ -61,6 +61,7 @@ const satRecMap = new Map();        // satId -> satrec (from satellite.js)
 const orbitEntities = new Map();    // satId -> orbit entity (polyline)
 const groundStations = new Map();   // code -> entity
 const linkEntities = new Map();     // linkId -> entity
+const satImageMap = new Map();  // satId -> imageUrl
 let isTracking = false;
 
 // Multi-color palette for orbits (will cycle)
@@ -119,7 +120,7 @@ async function loadSatellitesFromDB() {
                     const oldRec = satRecMap.get(satId);
 
                     // if new or changed, update map
-                    if (!oldRec || oldRec.tle1 !== sat.tleLine1 || oldRec.tle2 !== sat.tleLine2) {
+                    if (!oldRec || oldRec._metadata?.tle1 !== sat.tleLine1 || oldRec._metadata?.tle2 !== sat.tleLine2) {
                         // store satrec object and the raw tle strings for change detection
                         newSatrec._metadata = { tle1: sat.tleLine1, tle2: sat.tleLine2 };
                         satRecMap.set(satId, newSatrec);
@@ -154,7 +155,7 @@ async function loadSatellitesFromDB() {
                 orbitEntities.delete(id);
 
                 satRecMap.delete(id);
-                addConsoleOutput(`🗑️ Removed satellite ${id}`);
+                addConsoleOutput(`🗑 Removed satellite ${id}`);
             }
         });
 
@@ -239,12 +240,16 @@ function createSatelliteEntityWithOrbit(satellite, index = 0) {
     }
 
     // Satellite billboard + label
+    let imageUrl = satImageMap.get(satId)
+        || satellite.image      // if backend ever adds one
+        || 'images/default_sat.png'; // fallback icon
+    
     const entity = viewer.entities.add({
         id: satId,
         name: satellite.name || satId,
         position: positionProperty,
         billboard: {
-            image: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCI+PHBhdGggZmlsbD0iIzAwZmZmZiIgZD0iTTI0IDhsLTggOGg2djEyaC00djRoNHYxMmgtNmw4IDggOC04aC02VjI4aDR2LTRoLTRWMTJoNmwtOC04eiIvPjwvc3ZnPg==',
+            image: imageUrl,
             width: 28,
             height: 28,
             color: Cesium.Color.WHITE,
@@ -276,7 +281,7 @@ function createSatelliteEntityWithOrbit(satellite, index = 0) {
     });
 
     satEntities.set(satId, entity);
-    addConsoleOutput(`🛰️ Created entity ${satId}`);
+    addConsoleOutput(`🛰 Created entity ${satId}`);
 
     // Create orbit polyline once if satrec exists
     if (satrec) {
@@ -288,7 +293,7 @@ function createSatelliteEntityWithOrbit(satellite, index = 0) {
             const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
 
             const poly = viewer.entities.add({
-                id: satId + '_orbit',
+                id: `${satId}_orbit`,
                 polyline: {
                     positions: orbitPositions,
                     width: 1.6,
@@ -303,7 +308,7 @@ function createSatelliteEntityWithOrbit(satellite, index = 0) {
             orbitEntities.set(satId, poly);
             addConsoleOutput(`— Orbit created for ${satId} (${orbitPositions.length} pts)`);
         } else {
-            addConsoleOutput(`⚠️ Not enough orbit samples for ${satId}`);
+            addConsoleOutput(`⚠ Not enough orbit samples for ${satId}`);
         }
     }
 
@@ -462,7 +467,7 @@ function selectSatellite(satId) {
             showNotification(`Tracking ${satId.toUpperCase()}`);
         });
     } else {
-        addConsoleOutput(`⚠️ Satellite ${satId} not loaded yet`);
+        addConsoleOutput(`⚠ Satellite ${satId} not loaded yet`);
     }
 }
 
@@ -573,6 +578,11 @@ async function showSatelliteEducationCard(noradId) {
         const info = await response.json();
         const existing = document.getElementById('education-card-overlay');
         if (existing) existing.remove();
+        
+        // Store image URL for the satellite
+        if (info.name && info.icon) {
+            satImageMap.set(info.name, info.icon);
+        }
 
         const overlay = document.createElement('div');
         overlay.id = 'education-card-overlay';
@@ -581,7 +591,7 @@ async function showSatelliteEducationCard(noradId) {
                 <div style="background: linear-gradient(135deg, rgba(0,20,40,0.98), rgba(0,40,80,0.98)); border:2px solid #00ffff; border-radius:15px; padding:20px; max-width:600px; max-height:90vh; overflow-y:auto; font-family: monospace; position: relative;" onclick="event.stopPropagation()">
                     <button onclick="document.getElementById('education-card-overlay').remove()" style="position:absolute; top:10px; right:10px; background: rgba(255,0,0,0.2); border:1px solid #ff0000; color:#ff0000; width:30px; height:30px; border-radius:50%; cursor:pointer;">×</button>
                     <div style="text-align:center; margin-bottom:10px;">
-                        <div style="font-size:48px;">${info.icon || ''}</div>
+                        <img src="${info.icon || 'images/default_sat.png'}" style="width:80px; height:80px; border-radius:50%; border:2px solid #00ffff;" />
                         <h2 style="color:#00ffff; margin:6px 0;">${info.name || ''}</h2>
                         <div style="color:#aaa; font-size:14px;">${info.type || ''} • ${info.country || ''}</div>
                     </div>
@@ -619,6 +629,12 @@ async function showSatelliteEducationCard(noradId) {
     }
 }
 
+// Helper function to stop tracking
+function stopTracking() {
+    viewer.trackedEntity = undefined;
+    isTracking = false;
+}
+
 // =========== KEYBOARD SHORTCUTS ===========
 document.addEventListener('keydown', (e) => {
     if (document.activeElement === commandInput) return;
@@ -645,9 +661,12 @@ document.addEventListener('keydown', (e) => {
             break;
         case 'h':
         case 'H':
-            viewer.camera.flyHome(2);
-            viewer.trackedEntity = undefined;
-            isTracking = false;
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(78.9629, 20.5937, 20000000),
+                duration: 2
+            });
+            stopTracking();
+            showNotification("Centered on India");
             break;
     }
 });
@@ -667,7 +686,7 @@ updateSystemTime();
 
     const connected = await checkBackendHealth();
     if (!connected) {
-        addConsoleOutput('⚠️ Backend offline (continuing in offline mode)');
+        addConsoleOutput('⚠ Backend offline (continuing in offline mode)');
     }
 
     // Load ground stations & satellites
@@ -692,4 +711,3 @@ updateSystemTime();
     addConsoleOutput('✅ System ready. Use DSL commands or click a satellite to track.');
     addConsoleOutput('💡 Example: deploy iss with id 25544;');
 })();
-
